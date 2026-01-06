@@ -10,6 +10,7 @@ from typing import Optional
 
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, send_file, render_template, url_for
+from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
@@ -25,14 +26,8 @@ app = Flask(__name__, static_folder='static', template_folder='templates')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///qr_warehouse.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# CORS заголовки для доступа с GitHub Pages
-@app.after_request
-def add_cors_headers(response):
-    response.headers['Access-Control-Allow-Origin'] = '*'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    return response
-app.config['UPLOAD_FOLDER'] = 'uploads'
+# Конфигурация CORS для доступа с GitHub Pages
+CORS(app, origins=["https://mikawo846.github.io"])
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 
