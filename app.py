@@ -725,7 +725,7 @@ def open_qr():
         </body>
         </html>
         """
-        return html
+        return jsonify(note.to_dict()), 200
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -748,6 +748,17 @@ def uploaded_file(filename):
     """Раздача загруженных файлов"""
     return send_file(os.path.join(app.config['UPLOAD_FOLDER'], filename))
 
+
+# Обработчики ошибок HTTP
+@app.errorhandler(404)
+def handle_404(e):
+    """Обработчик ошибки 404 - возвращает JSON"""
+    return jsonify({'error': 'Not Found', 'status_code': 404}), 404
+
+@app.errorhandler(405)
+def handle_405(e):
+    """Обработчик ошибки 405 - возвращает JSON"""
+    return jsonify({'error': 'Method Not Allowed', 'status_code': 405}), 405
 
 # Регистрация handlers
 telegram_app.add_handler(CommandHandler("start", start_command))
