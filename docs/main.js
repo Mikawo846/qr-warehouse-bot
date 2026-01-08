@@ -1,8 +1,7 @@
-// QR Warehouse Notes - Main JavaScript
+// QR Warehouse Notes - Static JS (GitHub Pages)
 
 let html5QrCode = null;
 
-// Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
 });
@@ -12,6 +11,9 @@ function initializeApp() {
     initializeCharCounter();
     initializeFilePreview();
     initializeSmoothScroll();
+    initializeModals();
+    lazyLoadImages();
+    handleConnectivity();
 }
 
 // Обработчики формы
@@ -22,17 +24,16 @@ function initializeFormHandlers() {
     }
 }
 
-// Счетчик символов
+// Счётчик символов
 function initializeCharCounter() {
     const textarea = document.getElementById('note-text');
     const charCount = document.getElementById('char-count');
-    
+
     if (textarea && charCount) {
         textarea.addEventListener('input', function() {
             const length = this.value.length;
             charCount.textContent = `${length} / 4096`;
-            
-            // Изменяем цвет при приближении к лимиту
+
             if (length > 4000) {
                 charCount.classList.add('warning');
             } else {
@@ -42,16 +43,16 @@ function initializeCharCounter() {
     }
 }
 
-// Предпросмотр изображений
+// Предпросмотр изображений (только локально)
 function initializeFilePreview() {
     const fileInput = document.getElementById('photos');
     const previewContainer = document.getElementById('preview-images');
-    
+
     if (fileInput && previewContainer) {
         fileInput.addEventListener('change', function(e) {
             previewContainer.innerHTML = '';
             const files = Array.from(e.target.files);
-            
+
             files.slice(0, 5).forEach((file, index) => {
                 const reader = new FileReader();
                 reader.onload = function(e) {
@@ -60,8 +61,7 @@ function initializeFilePreview() {
                     img.alt = file.name;
                     img.title = `${file.name} (${index + 1}/5)`;
                     previewContainer.appendChild(img);
-                    
-                    // Анимация появления
+
                     setTimeout(() => {
                         img.style.opacity = '1';
                         img.style.transform = 'scale(1)';
@@ -75,7 +75,6 @@ function initializeFilePreview() {
 
 // Плавная прокрутка
 function initializeSmoothScroll() {
-    // Добавляем плавную прокрутку для всех якорных ссылок
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         anchor.addEventListener('click', function (e) {
             e.preventDefault();
@@ -90,110 +89,137 @@ function initializeSmoothScroll() {
     });
 }
 
-// Обработка отправки формы
+// Главное: обработка отправки формы БЕЗ сервера
 async function handleFormSubmit(e) {
     e.preventDefault();
-    
-    const formData = new FormData();
+
     const text = document.getElementById('note-text').value;
     const files = document.getElementById('photos').files;
-    
-    // Валидация
+
     if (!text.trim() && files.length === 0) {
         showError('Введите текст заметки или добавьте фото');
         return;
     }
-    
+
     if (files.length > 5) {
         showError('Максимум 5 фотографий');
         return;
     }
-    
+
     if (text.length > 4096) {
         showError('Текст превышает 4096 символов');
         return;
     }
-    
-    formData.append('text', text);
-    
-    for (let i = 0; i < Math.min(files.length, 5); i++) {
-        formData.append('photos', files[i]);
-    }
-    
-    // Показываем индикатор загрузки
+
     const submitBtn = document.querySelector('.submit-btn');
     const originalText = submitBtn.innerHTML;
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Создание...';
     submitBtn.disabled = true;
-    
+
     try {
-const response = await fetch('http://localhost:5000/create_note', {            method: 'POST',
-            body: formData
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            showQRResult(data.qr_url, data.note_id);
-            
-            // Очищаем форму
-            document.getElementById('note-form').reset();
-            document.getElementById('preview-images').innerHTML = '';
-            document.getElementById('char-count').textContent = '0 / 4096';
-            document.getElementById('char-count').classList.remove('warning');
-            
-            // Прокручиваем к результату
-            setTimeout(() => {
-                document.getElementById('qr-result-modal').scrollIntoView({ 
-                    behavior: 'smooth' 
-                });
-            }, 100);
-        } else {
-            const errorData = await response.json();
-            showError(errorData.error || 'Ошибка при создании заметки');
+        // Генерируем "данные" заметки (можно потом сохранить в localStorage)
+        const noteId = Date.now(); // простой ID на основе времени
+        const payload = {
+            id: noteId,
+            text: text.trim(),
+        };
+
+        // Здесь можно добавить сериализацию файлов в base64, если хочешь кодировать их в QR.
+        // Сейчас в QR пишем только текст.
+        const qrData = JSON.stringify(payload);
+
+        generateQRInModal(qrData, noteId);
+
+        // Очистка формы
+        document.getElementById('note-form').reset();
+        document.getElementById('preview-images').innerHTML = '';
+        const charCount = document.getElementById('char-count');
+        if (charCount) {
+            charCount.textContent = '0 / 4096';
+            charCount.classList.remove('warning');
         }
     } catch (error) {
         console.error('Form submission error:', error);
-        showError('Ошибка сети: ' + error.message);
+        showError('Ошибка при генерации QR: ' + error.message);
     } finally {
-        // Восстанавливаем кнопку
         submitBtn.innerHTML = originalText;
         submitBtn.disabled = false;
     }
 }
 
+// Генерация QR в модалке с помощью qrcode.js
+function generateQRInModal(qrData, noteId) {
+    const modal = document.getElementById('qr-result-modal');
+    const imageContainer = document.getElementById('qr-image-container');
+    const downloadBtn = document.getElementById('download-btn');
+
+    imageContainer.innerHTML = '';
+    const qrDiv = document.createElement('div');
+    imageContainer.appendChild(qrDiv);
+
+    const qr = new QRCode(qrDiv, {
+        text: qrData,
+        width: 256,
+        height: 256,
+    });
+
+    // Небольшая задержка, чтобы DOM успел создать <img>/<canvas>
+    setTimeout(() => {
+        const img = qrDiv.querySelector('img') || qrDiv.querySelector('canvas');
+        if (!img) {
+            imageContainer.innerHTML = '<p>Ошибка генерации QR-кода</p>';
+            modal.style.display = 'block';
+            return;
+        }
+
+        // Если canvas – конвертим в dataURL
+        let dataUrl;
+        if (img.tagName.toLowerCase() === 'canvas') {
+            dataUrl = img.toDataURL('image/png');
+        } else {
+            dataUrl = img.src;
+        }
+
+        // Обновляем контейнер, чтобы итог был в одном img
+        imageContainer.innerHTML = `<img src="${dataUrl}" alt="QR Code для заметки ${noteId}">`;
+
+        downloadBtn.href = dataUrl;
+        downloadBtn.download = `qr-note-${noteId}.png`;
+
+        modal.style.display = 'block';
+        modal.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 300);
+}
+
 // Прокрутка к форме
 function scrollToForm() {
-    document.getElementById('create-form').scrollIntoView({ 
+    document.getElementById('create-form').scrollIntoView({
         behavior: 'smooth',
         block: 'start'
     });
 }
 
-// QR Сканер
+// QR сканер (оставляем, но без запросов на сервер)
 function openQRScanner() {
     const modal = document.getElementById('qr-modal');
     modal.style.display = 'block';
-    
-    // Фокус на модальное окно
+
     setTimeout(() => {
         document.getElementById('qr-modal').focus();
     }, 100);
-    
+
     const scannerDiv = document.getElementById('qr-reader');
-    scannerDiv.innerHTML = ''; // Очищаем предыдущий сканер
-    
-    html5QrCode = new Html5Qrcode("qr-reader");
-    
+    scannerDiv.innerHTML = '';
+
+    html5QrCode = new Html5Qrcode('qr-reader');
+
     html5QrCode.start(
-        { facingMode: "environment" },
-        {
-            fps: 10,
-            qrbox: { width: 250, height: 250 }
-        },
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
         onScanSuccess,
         onScanFailure
     ).catch(err => {
-        console.error("Unable to start scanning", err);
+        console.error('Unable to start scanning', err);
         showScannerError('Не удалось запустить камеру. Проверьте разрешения камеры.');
     });
 }
@@ -204,101 +230,74 @@ function closeQRScanner() {
             html5QrCode.clear();
             html5QrCode = null;
         }).catch(err => {
-            console.error("Error stopping scanner", err);
+            console.error('Error stopping scanner', err);
         });
     }
-    
+
     const modal = document.getElementById('qr-modal');
     modal.style.display = 'none';
-    
+
     const resultDiv = document.getElementById('scanner-result');
     resultDiv.style.display = 'none';
     resultDiv.className = 'scanner-result';
 }
 
-function onScanSuccess(decodedText, decodedResult) {
-    showScannerSuccess(`QR-код распознан: ${decodedText.substring(0, 50)}${decodedText.length > 50 ? '...' : ''}`);
-    
-    // Вибрация при успехе (если поддерживается)
+function onScanSuccess(decodedText) {
+    showScannerSuccess(`QR-код распознан: ${decodedText.substring(0, 80)}${decodedText.length > 80 ? '...' : ''}`);
+
     if (navigator.vibrate) {
         navigator.vibrate(200);
     }
-    
-    // Отправляем запрос на открытие заметки
-fetch('http://localhost:5000/open_qr', {        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ data: decodedText })
-    })
-    .then(response => {
-        if (response.ok) {
-            return response.text();
-        } else {
-            return response.json().then(err => Promise.reject(err));
+
+    // Пробуем распарсить как JSON заметки
+    try {
+        const data = JSON.parse(decodedText);
+        let message = '';
+
+        if (data.text) {
+            message += `<p><strong>Текст заметки:</strong><br>${escapeHtml(data.text)}</p>`;
         }
-    })
-    .then(html => {
-        closeQRScanner();
-        // Открываем в новом окне для лучшего UX
-        const newWindow = window.open('', '_blank');
-        newWindow.document.write(html);
-        newWindow.document.close();
-    })
-    .catch(error => {
-        console.error('QR scan error:', error);
-        showScannerError(error.error || 'Не удалось загрузить заметку');
-    });
+
+        const resultDiv = document.getElementById('scanner-result');
+        resultDiv.innerHTML = `<i class="fas fa-check-circle"></i> QR-код распознан!${message}`;
+    } catch {
+        // Если не JSON — просто показываем текст
+        const resultDiv = document.getElementById('scanner-result');
+        resultDiv.innerHTML = `<i class="fas fa-check-circle"></i> QR-код распознан:<br>${escapeHtml(decodedText)}`;
+    }
 }
 
 function onScanFailure(error) {
-    // Игнорируем ошибки сканирования для лучшего UX
-    // console.error('QR scan failure:', error);
+    // игнорируем, чтобы не спамить
 }
 
-// Результат QR-кода
-function showQRResult(qrUrl, noteId) {
-    const modal = document.getElementById('qr-result-modal');
-    const imageContainer = document.getElementById('qr-image-container');
-    const downloadBtn = document.getElementById('download-btn');
-    
-    // Предзагрузка изображения для лучшего UX
-    const img = new Image();
-    img.onload = function() {
-        imageContainer.innerHTML = `<img src="${qrUrl}" alt="QR Code для заметки ${noteId}">`;
-        modal.style.display = 'block';
-    };
-    img.onerror = function() {
-        imageContainer.innerHTML = '<p>Ошибка загрузки QR-кода</p>';
-        modal.style.display = 'block';
-    };
-    img.src = qrUrl;
-    
-    downloadBtn.href = qrUrl;
-    downloadBtn.download = `qr-note-${noteId}.png`;
-}
-
+// Закрытие модалки с результатом
 function closeQRResult() {
     const modal = document.getElementById('qr-result-modal');
     modal.style.display = 'none';
 }
 
-// Показ ошибок
+// Ошибки
 function showError(message) {
     const errorDiv = document.getElementById('error-message');
     errorDiv.textContent = message;
     errorDiv.style.display = 'block';
-    
-    // Прокручиваем к ошибке
-    errorDiv.scrollIntoView({ 
+
+    errorDiv.scrollIntoView({
         behavior: 'smooth',
         block: 'center'
     });
-    
-    // Автоматически скрываем через 6 секунд
+
     setTimeout(() => {
         errorDiv.style.display = 'none';
     }, 6000);
+}
+
+function hideError() {
+    const errorDiv = document.getElementById('error-message');
+    if (errorDiv) {
+        errorDiv.style.display = 'none';
+    }
 }
 
 function showScannerSuccess(message) {
@@ -315,23 +314,21 @@ function showScannerError(message) {
     resultDiv.style.display = 'block';
 }
 
-// Обработка модальных окон
+// Модалки и ESC
 function initializeModals() {
-    // Закрытие по клику вне модального окна
     window.onclick = function(event) {
         const qrModal = document.getElementById('qr-modal');
         const qrResultModal = document.getElementById('qr-result-modal');
-        
+
         if (event.target === qrModal) {
             closeQRScanner();
         }
-        
+
         if (event.target === qrResultModal) {
             closeQRResult();
         }
     };
-    
-    // Закрытие по ESC
+
     document.addEventListener('keydown', function(event) {
         if (event.key === 'Escape') {
             closeQRScanner();
@@ -341,20 +338,11 @@ function initializeModals() {
     });
 }
 
-// Скрытие ошибки
-function hideError() {
-    const errorDiv = document.getElementById('error-message');
-    if (errorDiv) {
-        errorDiv.style.display = 'none';
-    }
-}
-
-// Инициализация модальных окон
-initializeModals();
-
-// Улучшение производительности - ленивая загрузка изображений
+// Ленивые изображения
 function lazyLoadImages() {
     const images = document.querySelectorAll('img[data-src]');
+    if (!('IntersectionObserver' in window)) return;
+
     const imageObserver = new IntersectionObserver((entries, observer) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
@@ -365,14 +353,11 @@ function lazyLoadImages() {
             }
         });
     });
-    
+
     images.forEach(img => imageObserver.observe(img));
 }
 
-// Инициализация ленивой загрузки
-lazyLoadImages();
-
-// Обработка онлайн/офлайн статуса
+// Индикатор онлайн/офлайн
 function handleConnectivity() {
     const statusIndicator = document.createElement('div');
     statusIndicator.id = 'connectivity-status';
@@ -387,9 +372,9 @@ function handleConnectivity() {
         z-index: 1001;
         transition: all 0.3s ease;
     `;
-    
+
     document.body.appendChild(statusIndicator);
-    
+
     function updateStatus() {
         if (navigator.onLine) {
             statusIndicator.textContent = '🟢 Онлайн';
@@ -401,20 +386,25 @@ function handleConnectivity() {
             statusIndicator.style.color = '#721c24';
         }
     }
-    
+
     window.addEventListener('online', updateStatus);
     window.addEventListener('offline', updateStatus);
     updateStatus();
 }
 
-// Инициализация индикатора подключения
-handleConnectivity();
+// Экранирование HTML
+function escapeHtml(str) {
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
 
-// Экспорт функций для глобального доступа
+// Экспорт для inline-обработчиков
 window.QRWarehouse = {
     scrollToForm,
     openQRScanner,
     closeQRScanner,
     closeQRResult,
-    showError
+    showError,
 };
