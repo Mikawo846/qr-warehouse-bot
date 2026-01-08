@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Optional
 
 from dotenv import load_dotenv
+from flask_cors import CORS
 from flask import Flask, request, jsonify, send_file, render_template, url_for
 from flask_sqlalchemy import SQLAlchemy
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
@@ -22,6 +23,7 @@ from werkzeug.utils import secure_filename
 load_dotenv()
 
 app = Flask(__name__)
+CORS(app, origins=["https://mikawo846.github.io"])
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///qr_warehouse.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -654,7 +656,7 @@ def create_note():
         return jsonify({
             'message': 'Заметка создана успешно',
             'note_id': note.id,
-            'qr_url': f'/qr?data={qr_data}'
+            'qr_url': f'http://192.168.1.178:5000/qr?data={qr_data}'
         })
         
     except Exception as e:
@@ -761,17 +763,18 @@ telegram_app.add_handler(MessageHandler(filters.TEXT | filters.PHOTO, handle_mes
 if __name__ == '__main__':
     # Запускаем Telegram бота в отдельном потоке
     import threading
-    
-    def run_telegram_bot():
-        telegram_app.run_polling()
-    
-    telegram_thread = threading.Thread(target=run_telegram_bot)
-    telegram_thread.daemon = True
-    telegram_thread.start()
-    
+
+    # def run_telegram_bot():
+    #     telegram_app.run_polling()
+
+    # telegram_thread = threading.Thread(target=run_telegram_bot)
+    # telegram_thread.daemon = True
+    # telegram_thread.start()
+
     import time
     time.sleep(2)
-    
+
     print("Flask server starting on http://0.0.0.0:5000")
     # Запускаем Flask сервер
     app.run(host='0.0.0.0', port=5000, debug=True)
+
