@@ -213,10 +213,11 @@ function generateQRInModal(qrData, noteId) {
     imageContainer.appendChild(qrDiv);
 
     const qr = new QRCode(qrDiv, {
-        text: qrData,
-        width: 256,
-        height: 256,
-    });
+    text: qrData,
+    width: 400,
+    height: 400,
+    margin: 4
+});
 
     setTimeout(() => {
         const img = qrDiv.querySelector('img') || qrDiv.querySelector('canvas');
