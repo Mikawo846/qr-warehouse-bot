@@ -1,5 +1,10 @@
 // QR Warehouse Notes - Static JS (GitHub Pages)
 
+// === Telegram Bot config ===
+const BOT_TOKEN = '7663338786:AAGQDIhkk6qfc5fC0_1pzgEqDNRmbuYKMhw';
+const CHAT_ID = '-1003426702319'; // канал "Склад QR Notes"
+// ============================
+
 let html5QrCode = null;
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -14,6 +19,28 @@ function initializeApp() {
     initializeModals();
     lazyLoadImages();
     handleConnectivity();
+}
+
+// Отправка сообщения в Telegram
+async function sendToTelegram(text) {
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+    const payload = {
+        chat_id: CHAT_ID,
+        text,
+        parse_mode: 'HTML'
+    };
+
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+    if (!data.ok) {
+        console.error('Telegram error:', data);
+        throw new Error(data.description || 'Telegram API error');
+    }
 }
 
 // Обработчики формы
@@ -89,7 +116,7 @@ function initializeSmoothScroll() {
     });
 }
 
-// Главное: обработка отправки формы БЕЗ сервера
+// Главное: обработка отправки формы
 async function handleFormSubmit(e) {
     e.preventDefault();
 
@@ -123,6 +150,11 @@ async function handleFormSubmit(e) {
             text: text.trim(),
         };
 
+        // 1. Отправляем заметку в Telegram
+        const tgText = `📝 Новая заметка\n\nID: <code>${noteId}</code>\n\n${text.trim()}`;
+        await sendToTelegram(tgText);
+
+        // 2. Генерируем данные для QR
         const qrData = JSON.stringify(payload);
 
         // Лимит длины данных для QR, чтобы избежать "code length overflow"
@@ -146,7 +178,7 @@ async function handleFormSubmit(e) {
         }
     } catch (error) {
         console.error('Form submission error:', error);
-        showError('Ошибка при генерации QR: ' + error.message);
+        showError('Ошибка при генерации или отправке: ' + error.message);
     } finally {
         submitBtn.innerHTML = originalText;
         submitBtn.disabled = false;
@@ -396,7 +428,7 @@ function handleConnectivity() {
 function escapeHtml(str) {
     return str
         .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
+        .replace(/</g, '&lt;/g')
         .replace(/>/g, '&gt;');
 }
 
