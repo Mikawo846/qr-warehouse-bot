@@ -20,12 +20,10 @@ from PIL import Image
 import io
 from werkzeug.utils import secure_filename
 
-# Загружаем переменные окружения из .env файла
 load_dotenv()
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
 
-# базовые настройки
 BASE_DIR = Path(__file__).resolve().parent
 UPLOAD_FOLDER = BASE_DIR / "uploads"
 
@@ -35,21 +33,17 @@ app.config['UPLOAD_FOLDER'] = str(UPLOAD_FOLDER)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 
-# CORS для GitHub Pages
 CORS(app, origins=["https://mikawo846.github.io"])
 
-# создаём папку для загрузок
 Path(app.config['UPLOAD_FOLDER']).mkdir(exist_ok=True, parents=True)
 
 db = SQLAlchemy(app)
 
-# Создаем папку для загрузок
 UPLOAD_FOLDER = app.config.get('UPLOAD_FOLDER', 'uploads')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 Path(UPLOAD_FOLDER).mkdir(exist_ok=True)
 
 
-# Переменные окружения
 BOT_TOKEN = os.environ.get('TOKEN')
 if not BOT_TOKEN:
     raise ValueError("TOKEN environment variable is not set")
@@ -66,7 +60,6 @@ if not CHANNEL_ID:
 
 CHANNEL_ID = int(CHANNEL_ID)
 
-# Модель БД
 class Note(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     title = db.Column(db.String(500), nullable=False)
@@ -84,11 +77,9 @@ class Note(db.Model):
             'created': self.created.isoformat() if self.created else None
         }
 
-# Инициализация БД
 with app.app_context():
     db.create_all()
 
-# Создаем отдельный event loop для Telegram операций
 _telegram_loop = asyncio.new_event_loop()
 _telegram_queue = queue.Queue()
 
@@ -111,7 +102,6 @@ def _run_telegram_loop():
     
     loop.run_until_complete(process_queue())
 
-# Запускаем фоновый поток
 _telegram_thread = threading.Thread(target=_run_telegram_loop, daemon=True)
 _telegram_thread.start()
 
@@ -122,11 +112,9 @@ def send_to_channel_sync(text: str, photo_paths: list):
     except Exception as e:
         app.logger.error(f"Error queueing send_to_channel: {e}")
 
-# Telegram Bot Application
 telegram_app = Application.builder().token(BOT_TOKEN).build()
 bot = Bot(token=BOT_TOKEN)
 
-# Хранилище для временных данных пользователей (для загрузки фото)
 user_states = {}
 
 
@@ -138,7 +126,6 @@ def is_authorized(user_id: int) -> bool:
 def compress_image(file_source, target_path):
     """Сжатие изображения до max 1600x1600, качество 80% JPEG"""
     try:
-        # Определяем тип источника
         if hasattr(file_source, 'filename'):  # Flask FileStorage
             img = Image.open(file_source)
         elif isinstance(file_source, str):  # Путь к файлу
@@ -146,7 +133,6 @@ def compress_image(file_source, target_path):
         else:
             return False
         
-        # Конвертируем в RGB если нужно (для JPEG)
         if img.mode in ('RGBA', 'LA', 'P'):
             background = Image.new('RGB', img.size, (255, 255, 255))
             if img.mode == 'P':
@@ -156,10 +142,8 @@ def compress_image(file_source, target_path):
         elif img.mode != 'RGB':
             img = img.convert('RGB')
         
-        # Получаем текущие размеры
         width, height = img.size
         
-        # Вычисляем новые размеры с сохранением пропорций
         max_size = 1600
         if width > max_size or height > max_size:
             if width > height:
@@ -169,7 +153,6 @@ def compress_image(file_source, target_path):
                 new_height = max_size
                 new_width = int(width * (max_size / height))
             
-            # Сжимаем с высококачественным ресайзом
             img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
         
         # Сохраняем как JPEG с качеством 80%
@@ -223,7 +206,6 @@ async def qr_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     text_or_link = ' '.join(context.args)
     
-    # Проверяем, это QR-код заметки
     if text_or_link.startswith('qrapp:note:'):
         note_id = text_or_link.replace('qrapp:note:', '')
         note = Note.query.filter_by(id=note_id).first()
@@ -232,7 +214,6 @@ async def qr_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❌ Заметка не найдена")
             return
         
-        # Формируем текст заметки
         note_text = f"📝 {note.title}\n\n"
         if note.text:
             note_text += note.text
@@ -245,7 +226,6 @@ async def qr_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         await update.message.reply_text(note_text, parse_mode='HTML')
         
-        # Отправляем фото если есть
         if note.photos_json:
             photos = json.loads(note.photos_json)
             for photo_path in photos[:3]:  # Максимум 3 фото
