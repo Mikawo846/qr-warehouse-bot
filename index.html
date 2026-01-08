@@ -22,10 +22,10 @@
             <p>Создавайте цифровые карточки для вещей, склада и документов</p>
 
             <div class="cta-buttons">
-                <button class="btn btn-primary" onclick="scrollToForm()">
+                <button class="btn btn-primary" onclick="QRWarehouse.scrollToForm()">
                     <i class="fas fa-plus"></i> Создать QR-заметку
                 </button>
-                <button class="btn btn-secondary" onclick="openQRScanner()">
+                <button class="btn btn-secondary" onclick="QRWarehouse.openQRScanner()">
                     <i class="fas fa-qrcode"></i> Сканировать QR-код
                 </button>
             </div>
@@ -40,7 +40,6 @@
         <div class="form-section" id="create-form">
             <h2>Создать QR-заметку</h2>
 
-            <!-- Убраны method и action, теперь всё делает JS -->
             <form id="note-form" enctype="multipart/form-data">
                 <div class="form-group">
                     <label for="note-text">Текст заметки</label>
@@ -128,13 +127,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- Статус пока убираем, он вёл на бэкенд -->
-        <!-- <div class="status-link">
-            <a href="/status">
-                <i class="fas fa-heartbeat"></i> Проверить статус сервиса
-            </a>
-        </div> -->
     </div>
 
     <!-- QR Scanner Modal -->
@@ -142,7 +134,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3 class="modal-title">Сканирование QR-кода</h3>
-                <button class="close" onclick="closeQRScanner()">&times;</button>
+                <button class="close" onclick="QRWarehouse.closeQRScanner()">&times;</button>
             </div>
             <div class="modal-body">
                 <div id="qr-reader"></div>
@@ -156,7 +148,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3 class="modal-title">QR-код создан!</h3>
-                <button class="close" onclick="closeQRResult()">&times;</button>
+                <button class="close" onclick="QRWarehouse.closeQRResult()">&times;</button>
             </div>
             <div class="modal-body qr-result-modal">
                 <div id="qr-image-container"></div>
@@ -169,6 +161,9 @@
 
     <!-- Error Message -->
     <div id="error-message" class="error-message" style="display: none;"></div>
+
+    <!-- Supabase CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script> <!-- [web:263][web:266] -->
 
     <!-- Ваш JS для логики -->
     <script src="main.js?v=static"></script>
