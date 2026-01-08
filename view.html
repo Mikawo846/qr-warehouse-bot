@@ -49,7 +49,18 @@
     <div id="note-error" class="note-error" style="display:none;"></div>
   </div>
 
+  <!-- Supabase CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <script>
+    const { createClient } = supabase;
+
+    // ДАННЫЕ ТВОЕГО ПРОЕКТА (как в main.js)
+    const SUPABASE_URL = 'https://qnthvgdiiowyqyazyraz.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_mf_8lE_tObtAhm4o4PU7xg_tk4xheC3';
+
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY); // [web:58]
+
     function escapeHtml(str) {
       return str
         .replace(/&/g, '&amp;')
@@ -57,38 +68,51 @@
         .replace(/>/g, '&gt;');
     }
 
-    (function () {
+    async function initView() {
       const params = new URLSearchParams(window.location.search);
-      const dataParam = params.get('data');
+      const id = params.get('id'); // ждём ?id=123
 
       const errorDiv = document.getElementById('note-error');
       const contentDiv = document.getElementById('note-content');
       const metaDiv = document.getElementById('note-meta');
 
-      if (!dataParam) {
-        errorDiv.textContent = 'Данные заметки не найдены в ссылке.';
+      if (!id) {
+        errorDiv.textContent = 'Не передан параметр id в ссылке.';
         errorDiv.style.display = 'block';
         return;
       }
 
-      try {
-        const jsonStr = decodeURIComponent(dataParam);
-        const data = JSON.parse(jsonStr);
+      metaDiv.textContent = 'ID: ' + id;
+      errorDiv.style.display = 'none';
+      contentDiv.textContent = 'Загружаем заметку…';
 
-        const text = data.text ? escapeHtml(data.text) : '(пустая заметка)';
-        const id = data.id || '';
+      const { data, error } = await sb
+        .from('notes')
+        .select('text')
+        .eq('id', id)
+        .single(); // одна строка по id [web:89][web:46][web:99]
 
-        if (id) {
-          metaDiv.textContent = 'ID: ' + id;
-        }
-
-        contentDiv.innerHTML = text.replace(/\n/g, '<br>');
-      } catch (e) {
-        console.error(e);
-        errorDiv.textContent = 'Не удалось прочитать данные заметки.';
+      if (error) {
+        console.error(error);
+        contentDiv.textContent = '';
+        errorDiv.textContent = 'Ошибка загрузки заметки.';
         errorDiv.style.display = 'block';
+        return;
       }
-    })();
+
+      if (!data) {
+        contentDiv.textContent = '';
+        errorDiv.textContent = 'Заметка не найдена.';
+        errorDiv.style.display = 'block';
+        return;
+      }
+
+      const text = data.text ? escapeHtml(data.text) : '(пустая заметка)';
+      contentDiv.innerHTML = text.replace(/\n/g, '<br>');
+      errorDiv.style.display = 'none';
+    }
+
+    document.addEventListener('DOMContentLoaded', initView);
   </script>
 </body>
 </html>
