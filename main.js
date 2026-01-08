@@ -154,11 +154,15 @@ async function handleFormSubmit(e) {
         const tgText = `📝 Новая заметка\n\nID: <code>${noteId}</code>\n\n${text.trim()}`;
         await sendToTelegram(tgText);
 
-        // 2. Генерируем данные для QR
-        const qrData = JSON.stringify(payload);
+        // 2. Кодируем данные заметки в ссылку на view.html
+        const json = JSON.stringify(payload);
+        const encoded = encodeURIComponent(json);
 
-        // Лимит длины данных для QR, чтобы избежать "code length overflow"
-        const MAX_QR_LEN = 350;
+        const baseUrl = 'https://mikawo846.github.io/qr-warehouse-bot';
+        const qrData = `${baseUrl}/view.html?data=${encoded}`;
+
+        // Лимит длины данных для QR (по длине URL)
+        const MAX_QR_LEN = 800;
         if (qrData.length > MAX_QR_LEN) {
             showError('Слишком длинная заметка для одного QR. Уменьши текст или разбей его на несколько QR-кодов.');
             submitBtn.innerHTML = originalText;
@@ -428,7 +432,7 @@ function handleConnectivity() {
 function escapeHtml(str) {
     return str
         .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;/g')
+        .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
 }
 
