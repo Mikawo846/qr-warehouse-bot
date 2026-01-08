@@ -11,6 +11,7 @@ from typing import Optional
 from dotenv import load_dotenv
 from flask_cors import CORS
 from flask import Flask, request, jsonify, send_file, render_template, url_for
+from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
@@ -22,18 +23,29 @@ from werkzeug.utils import secure_filename
 # Загружаем переменные окружения из .env файла
 load_dotenv()
 
+<<<<<<< HEAD
 app = Flask(__name__)
 CORS(app, origins=["https://mikawo846.github.io"])
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///qr_warehouse.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+=======
+app = Flask(__name__, static_folder='static', template_folder='templates')
+>>>>>>> 3130be5d4d2e7aef8754410d3df96cabc3afa9f1
 app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
+
+# Конфигурация CORS для доступа с GitHub Pages
+CORS(app, origins=["https://mikawo846.github.io"])
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 
 db = SQLAlchemy(app)
 
 # Создаем папку для загрузок
-Path(app.config['UPLOAD_FOLDER']).mkdir(exist_ok=True)
+UPLOAD_FOLDER = app.config.get('UPLOAD_FOLDER', 'uploads')
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+Path(UPLOAD_FOLDER).mkdir(exist_ok=True)
+
 
 # Переменные окружения
 BOT_TOKEN = os.environ.get('TOKEN')
@@ -727,7 +739,7 @@ def open_qr():
         </body>
         </html>
         """
-        return html
+        return jsonify(note.to_dict()), 200
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -750,6 +762,17 @@ def uploaded_file(filename):
     """Раздача загруженных файлов"""
     return send_file(os.path.join(app.config['UPLOAD_FOLDER'], filename))
 
+
+# Обработчики ошибок HTTP
+@app.errorhandler(404)
+def handle_404(e):
+    """Обработчик ошибки 404 - возвращает JSON"""
+    return jsonify({'error': 'Not Found', 'status_code': 404}), 404
+
+@app.errorhandler(405)
+def handle_405(e):
+    """Обработчик ошибки 405 - возвращает JSON"""
+    return jsonify({'error': 'Method Not Allowed', 'status_code': 405}), 405
 
 # Регистрация handlers
 telegram_app.add_handler(CommandHandler("start", start_command))
@@ -776,5 +799,9 @@ if __name__ == '__main__':
 
     print("Flask server starting on http://0.0.0.0:5000")
     # Запускаем Flask сервер
+<<<<<<< HEAD
     app.run(host='0.0.0.0', port=5000, debug=True)
 
+=======
+app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=False)
+>>>>>>> 3130be5d4d2e7aef8754410d3df96cabc3afa9f1

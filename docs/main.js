@@ -127,8 +127,7 @@ async function handleFormSubmit(e) {
     submitBtn.disabled = true;
     
     try {
-        const response = await fetch('/create_note', {
-            method: 'POST',
+const response = await fetch('http://localhost:5000/create_note', {            method: 'POST',
             body: formData
         });
         
@@ -226,8 +225,7 @@ function onScanSuccess(decodedText, decodedResult) {
     }
     
     // Отправляем запрос на открытие заметки
-    fetch('/open_qr', {
-        method: 'POST',
+fetch('http://localhost:5000/open_qr', {        method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
