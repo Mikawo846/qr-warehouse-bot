@@ -1,6 +1,14 @@
-// QR Warehouse Notes - Static JS (GitHub Pages)
+// QR Warehouse Notes - Supabase + Short QR
 
-// === Telegram Bot config ===
+// === Supabase config (frontend, только anon key) ===
+const SUPABASE_URL = 'https://qnthvgdiioywqyzqyraz.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_mf_8lE_tObtAhm4o4PU7xg_tk4xheC3';
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY); // [web:265][web:267]
+// ================================================
+
+// === Telegram Bot config (можно позже унести на бэкенд) ===
 const BOT_TOKEN = '7663338786:AAGQDIhkk6qfc5fC0_1pzgEqDNRmbuYKMhw';
 const CHAT_ID = '-1003426702319'; // канал "Склад QR Notes"
 // ============================
@@ -144,27 +152,32 @@ async function handleFormSubmit(e) {
     submitBtn.disabled = true;
 
     try {
-        const noteId = Date.now(); // простой ID
-        const payload = {
-            id: noteId,
-            text: text.trim(),
-        };
+        // 1. Сохраняем заметку в Supabase и получаем id
+        const { data, error } = await sb
+            .from('notes')
+            .insert([{ text: text.trim() }]) // без .select() можно не возвращать строку [web:268][web:271]
+            .select('id')
+            .single();
 
-        // 1. Отправляем заметку в Telegram
+        if (error) {
+            console.error('Supabase insert error:', error);
+            throw new Error('Ошибка сохранения в базе');
+        }
+
+        const noteId = data.id;
+
+        // 2. Шлём в Telegram
         const tgText = `📝 Новая заметка\n\nID: <code>${noteId}</code>\n\n${text.trim()}`;
         await sendToTelegram(tgText);
 
-        // 2. Кодируем данные заметки в ссылку на view.html
-        const json = JSON.stringify(payload);
-        const encoded = encodeURIComponent(json);
-
+        // 3. Делаем короткий URL для QR: view.html?id=123
         const baseUrl = 'https://mikawo846.github.io/qr-warehouse-bot';
-        const qrData = `${baseUrl}/view.html?data=${encoded}`;
+        const qrData = `${baseUrl}/view.html?id=${noteId}`;
 
-        // Лимит длины данных для QR (по длине URL)
+        // На всякий случай ограничим длину
         const MAX_QR_LEN = 350;
         if (qrData.length > MAX_QR_LEN) {
-            showError('Слишком длинная заметка для одного QR. Уменьши текст или разбей его на несколько QR-кодов.');
+            showError('Слишком длинная ссылка для QR, попробуй ещё раз.');
             submitBtn.innerHTML = originalText;
             submitBtn.disabled = false;
             return;
@@ -182,7 +195,7 @@ async function handleFormSubmit(e) {
         }
     } catch (error) {
         console.error('Form submission error:', error);
-        showError('Ошибка при генерации или отправке: ' + error.message);
+        showError('Ошибка при сохранении или отправке: ' + error.message);
     } finally {
         submitBtn.innerHTML = originalText;
         submitBtn.disabled = false;
@@ -238,7 +251,7 @@ function scrollToForm() {
     });
 }
 
-// QR сканер (оставляем, но без запросов на сервер)
+// QR сканер
 function openQRScanner() {
     const modal = document.getElementById('qr-modal');
     modal.style.display = 'block';
@@ -281,9 +294,8 @@ function closeQRScanner() {
     resultDiv.className = 'scanner-result';
 }
 
-// НОВЫЙ onScanSuccess
+// onScanSuccess: если это ссылка на нашу view.html, даём кнопку "Открыть"
 function onScanSuccess(decodedText) {
-    // Краткое превью
     showScannerSuccess(`QR-код распознан: ${decodedText.substring(0, 80)}${decodedText.length > 80 ? '...' : ''}`);
 
     if (navigator.vibrate) {
@@ -292,7 +304,6 @@ function onScanSuccess(decodedText) {
 
     const resultDiv = document.getElementById('scanner-result');
 
-    // Если это ссылка на нашу страницу заметки — даём кнопку "Открыть"
     if (decodedText.startsWith('https://mikawo846.github.io/qr-warehouse-bot/view.html')) {
         const safeUrl = decodedText;
 
@@ -305,7 +316,6 @@ function onScanSuccess(decodedText) {
             </a>
         `;
     } else {
-        // Всё остальное показываем как текст
         resultDiv.innerHTML = `<i class="fas fa-check-circle"></i> QR-код распознан:<br>${escapeHtml(decodedText)}`;
     }
 }
