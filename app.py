@@ -788,4 +788,4 @@ if __name__ == '__main__':
     
     print("Flask server starting on http://0.0.0.0:5000")
     # Запускаем Flask сервер
-    app.run(host='0.0.0.0', port=5000, debug=True)
+app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=False)
