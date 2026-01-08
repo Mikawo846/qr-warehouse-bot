@@ -34,7 +34,10 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-i
 db = SQLAlchemy(app)
 
 # Создаем папку для загрузок
-Path(app.config['UPLOAD_FOLDER']).mkdir(exist_ok=True)
+UPLOAD_FOLDER = app.config.get('UPLOAD_FOLDER', 'uploads')
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+Path(UPLOAD_FOLDER).mkdir(exist_ok=True)
+
 
 # Переменные окружения
 BOT_TOKEN = os.environ.get('TOKEN')
