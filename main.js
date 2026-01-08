@@ -162,7 +162,7 @@ async function handleFormSubmit(e) {
         const qrData = `${baseUrl}/view.html?data=${encoded}`;
 
         // Лимит длины данных для QR (по длине URL)
-        const MAX_QR_LEN = 800;
+        const MAX_QR_LEN = 350;
         if (qrData.length > MAX_QR_LEN) {
             showError('Слишком длинная заметка для одного QR. Уменьши текст или разбей его на несколько QR-кодов.');
             submitBtn.innerHTML = originalText;
@@ -281,25 +281,31 @@ function closeQRScanner() {
     resultDiv.className = 'scanner-result';
 }
 
+// НОВЫЙ onScanSuccess
 function onScanSuccess(decodedText) {
+    // Краткое превью
     showScannerSuccess(`QR-код распознан: ${decodedText.substring(0, 80)}${decodedText.length > 80 ? '...' : ''}`);
 
     if (navigator.vibrate) {
         navigator.vibrate(200);
     }
 
-    try {
-        const data = JSON.parse(decodedText);
-        let message = '';
+    const resultDiv = document.getElementById('scanner-result');
 
-        if (data.text) {
-            message += `<p><strong>Текст заметки:</strong><br>${escapeHtml(data.text)}</p>`;
-        }
+    // Если это ссылка на нашу страницу заметки — даём кнопку "Открыть"
+    if (decodedText.startsWith('https://mikawo846.github.io/qr-warehouse-bot/view.html')) {
+        const safeUrl = decodedText;
 
-        const resultDiv = document.getElementById('scanner-result');
-        resultDiv.innerHTML = `<i class="fas fa-check-circle"></i> QR-код распознан!${message}`;
-    } catch {
-        const resultDiv = document.getElementById('scanner-result');
+        resultDiv.innerHTML = `
+            <i class="fas fa-check-circle"></i> QR-код распознан!<br>
+            <a href="${safeUrl}" target="_blank"
+               class="btn btn-primary"
+               style="margin-top:10px;display:inline-block;padding:10px 18px;border-radius:10px;background:#ff5c5c;color:#fff;text-decoration:none;">
+               Открыть заметку
+            </a>
+        `;
+    } else {
+        // Всё остальное показываем как текст
         resultDiv.innerHTML = `<i class="fas fa-check-circle"></i> QR-код распознан:<br>${escapeHtml(decodedText)}`;
     }
 }
