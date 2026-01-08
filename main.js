@@ -117,16 +117,22 @@ async function handleFormSubmit(e) {
     submitBtn.disabled = true;
 
     try {
-        // Генерируем "данные" заметки (можно потом сохранить в localStorage)
-        const noteId = Date.now(); // простой ID на основе времени
+        const noteId = Date.now(); // простой ID
         const payload = {
             id: noteId,
             text: text.trim(),
         };
 
-        // Здесь можно добавить сериализацию файлов в base64, если хочешь кодировать их в QR.
-        // Сейчас в QR пишем только текст.
         const qrData = JSON.stringify(payload);
+
+        // Лимит длины данных для QR, чтобы избежать "code length overflow"
+        const MAX_QR_LEN = 350;
+        if (qrData.length > MAX_QR_LEN) {
+            showError('Слишком длинная заметка для одного QR. Уменьши текст или разбей его на несколько QR-кодов.');
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+            return;
+        }
 
         generateQRInModal(qrData, noteId);
 
@@ -163,7 +169,6 @@ function generateQRInModal(qrData, noteId) {
         height: 256,
     });
 
-    // Небольшая задержка, чтобы DOM успел создать <img>/<canvas>
     setTimeout(() => {
         const img = qrDiv.querySelector('img') || qrDiv.querySelector('canvas');
         if (!img) {
@@ -172,7 +177,6 @@ function generateQRInModal(qrData, noteId) {
             return;
         }
 
-        // Если canvas – конвертим в dataURL
         let dataUrl;
         if (img.tagName.toLowerCase() === 'canvas') {
             dataUrl = img.toDataURL('image/png');
@@ -180,7 +184,6 @@ function generateQRInModal(qrData, noteId) {
             dataUrl = img.src;
         }
 
-        // Обновляем контейнер, чтобы итог был в одном img
         imageContainer.innerHTML = `<img src="${dataUrl}" alt="QR Code для заметки ${noteId}">`;
 
         downloadBtn.href = dataUrl;
@@ -249,7 +252,6 @@ function onScanSuccess(decodedText) {
         navigator.vibrate(200);
     }
 
-    // Пробуем распарсить как JSON заметки
     try {
         const data = JSON.parse(decodedText);
         let message = '';
@@ -261,17 +263,15 @@ function onScanSuccess(decodedText) {
         const resultDiv = document.getElementById('scanner-result');
         resultDiv.innerHTML = `<i class="fas fa-check-circle"></i> QR-код распознан!${message}`;
     } catch {
-        // Если не JSON — просто показываем текст
         const resultDiv = document.getElementById('scanner-result');
         resultDiv.innerHTML = `<i class="fas fa-check-circle"></i> QR-код распознан:<br>${escapeHtml(decodedText)}`;
     }
 }
 
 function onScanFailure(error) {
-    // игнорируем, чтобы не спамить
+    // игнорируем
 }
 
-// Закрытие модалки с результатом
 function closeQRResult() {
     const modal = document.getElementById('qr-result-modal');
     modal.style.display = 'none';
