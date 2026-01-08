@@ -23,21 +23,23 @@ from werkzeug.utils import secure_filename
 # Загружаем переменные окружения из .env файла
 load_dotenv()
 
-<<<<<<< HEAD
-app = Flask(__name__)
-CORS(app, origins=["https://mikawo846.github.io"])
+app = Flask(__name__, static_folder='static', template_folder='templates')
+
+# базовые настройки
+BASE_DIR = Path(__file__).resolve().parent
+UPLOAD_FOLDER = BASE_DIR / "uploads"
+
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///qr_warehouse.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-=======
-app = Flask(__name__, static_folder='static', template_folder='templates')
->>>>>>> 3130be5d4d2e7aef8754410d3df96cabc3afa9f1
-app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['UPLOAD_FOLDER'] = str(UPLOAD_FOLDER)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
-
-# Конфигурация CORS для доступа с GitHub Pages
-CORS(app, origins=["https://mikawo846.github.io"])
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+
+# CORS для GitHub Pages
+CORS(app, origins=["https://mikawo846.github.io"])
+
+# создаём папку для загрузок
+Path(app.config['UPLOAD_FOLDER']).mkdir(exist_ok=True, parents=True)
 
 db = SQLAlchemy(app)
 
